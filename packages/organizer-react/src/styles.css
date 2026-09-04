@@ -1,0 +1,382 @@
+.tigao-organizer {
+  --organizer-color-text: #233044;
+  --organizer-color-muted: #6b7280;
+  --organizer-color-surface: #ffffff;
+  --organizer-color-subtle: #f5f7fb;
+  --organizer-color-accent: #6d4aff;
+  --organizer-color-accent-soft: #eeeaff;
+  --organizer-color-danger: #bd2c3f;
+  --organizer-color-border: #dfe3eb;
+  --organizer-radius: 14px;
+  --organizer-gap: 16px;
+  --organizer-shadow: 0 8px 24px rgba(30, 41, 59, 0.08);
+  color: var(--organizer-color-text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  width: 100%;
+}
+
+.tigao-organizer *,
+.tigao-organizer *::before,
+.tigao-organizer *::after {
+  box-sizing: border-box;
+}
+
+.tigao-organizer__header,
+.tigao-organizer__header > div,
+.tigao-organizer__breadcrumbs,
+.tigao-organizer__breadcrumb-part,
+.tigao-organizer__card-actions,
+.tigao-organizer__dialog-actions {
+  display: flex;
+  align-items: center;
+}
+
+.tigao-organizer__header {
+  justify-content: space-between;
+  gap: var(--organizer-gap);
+  margin-bottom: 14px;
+}
+
+.tigao-organizer__header > div {
+  gap: 12px;
+}
+
+.tigao-organizer__header h1,
+.tigao-organizer__section h2,
+.tigao-organizer__dialog h2,
+.tigao-organizer__header p {
+  margin: 0;
+}
+
+.tigao-organizer__header h1 {
+  font-size: 1.6rem;
+}
+
+.tigao-organizer__header p,
+.tigao-organizer__header [role="status"] {
+  color: var(--organizer-color-muted);
+  font-size: 0.88rem;
+}
+
+.tigao-organizer__breadcrumbs {
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: var(--organizer-gap);
+}
+
+.tigao-organizer__breadcrumb-part {
+  gap: 5px;
+}
+
+.tigao-organizer__breadcrumb,
+.tigao-organizer__create-form button,
+.tigao-organizer__dialog button,
+.tigao-organizer__alert button {
+  border: 1px solid var(--organizer-color-border);
+  border-radius: 9px;
+  background: var(--organizer-color-surface);
+  color: inherit;
+  cursor: pointer;
+  padding: 8px 11px;
+}
+
+.tigao-organizer__breadcrumb[aria-current="page"],
+.tigao-organizer__breadcrumb--over {
+  border-color: var(--organizer-color-accent);
+  background: var(--organizer-color-accent-soft);
+}
+
+.tigao-organizer__create-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--organizer-gap);
+  padding: var(--organizer-gap);
+  margin-bottom: 22px;
+  border: 1px solid var(--organizer-color-border);
+  border-radius: var(--organizer-radius);
+  background: var(--organizer-color-subtle);
+}
+
+.tigao-organizer__create-form label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--organizer-color-muted);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.tigao-organizer__create-form > div {
+  display: flex;
+  gap: 8px;
+}
+
+.tigao-organizer__create-form input,
+.tigao-organizer__dialog input {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--organizer-color-border);
+  border-radius: 9px;
+  background: var(--organizer-color-surface);
+  color: inherit;
+  font: inherit;
+  padding: 9px 11px;
+}
+
+.tigao-organizer__create-form button:last-child,
+.tigao-organizer__dialog-actions button:last-child {
+  border-color: var(--organizer-color-accent);
+  background: var(--organizer-color-accent);
+  color: #ffffff;
+}
+
+.tigao-organizer__content,
+.tigao-organizer__section {
+  display: grid;
+  gap: 12px;
+}
+
+.tigao-organizer__content {
+  gap: 24px;
+}
+
+.tigao-organizer__section h2 {
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--organizer-color-muted);
+}
+
+.tigao-organizer__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: var(--organizer-gap);
+}
+
+.tigao-organizer__card {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--organizer-color-border);
+  border-radius: var(--organizer-radius);
+  background: var(--organizer-color-surface);
+  box-shadow: var(--organizer-shadow);
+  transition: border-color 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+}
+
+.tigao-organizer__card--dragging {
+  z-index: 2;
+  opacity: 0.58;
+  box-shadow: 0 14px 34px rgba(30, 41, 59, 0.18);
+}
+
+.tigao-organizer__item-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 82px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 16px;
+  text-align: left;
+}
+
+.tigao-organizer__item-symbol {
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--organizer-color-accent-soft);
+  color: var(--organizer-color-accent);
+  font-size: 1.35rem;
+}
+
+.tigao-organizer__item-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 3px;
+}
+
+.tigao-organizer__item-copy strong,
+.tigao-organizer__item-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tigao-organizer__item-copy small,
+.tigao-organizer__open-label {
+  color: var(--organizer-color-muted);
+  font-size: 0.76rem;
+}
+
+.tigao-organizer__nest-target {
+  margin: -7px 12px 9px;
+  border: 1px dashed var(--organizer-color-border);
+  border-radius: 8px;
+  color: var(--organizer-color-muted);
+  font-size: 0.72rem;
+  padding: 5px 8px;
+  text-align: center;
+}
+
+.tigao-organizer__nest-target--over {
+  border-color: var(--organizer-color-accent);
+  background: var(--organizer-color-accent-soft);
+  color: var(--organizer-color-accent);
+}
+
+.tigao-organizer__card-actions {
+  flex-wrap: wrap;
+  gap: 5px;
+  border-top: 1px solid var(--organizer-color-border);
+  padding: 9px 11px;
+}
+
+.tigao-organizer__icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--organizer-color-muted);
+  cursor: pointer;
+}
+
+.tigao-organizer__icon-button:hover:not(:disabled) {
+  background: var(--organizer-color-subtle);
+  color: var(--organizer-color-text);
+}
+
+.tigao-organizer__drag-handle {
+  cursor: grab;
+}
+
+.tigao-organizer__drag-handle:active {
+  cursor: grabbing;
+}
+
+.tigao-organizer__alert,
+.tigao-organizer__warning,
+.tigao-organizer__readonly,
+.tigao-organizer__empty {
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 0 0 var(--organizer-gap);
+}
+
+.tigao-organizer__alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #f0a8b1;
+  background: #fff1f3;
+  color: #8f1d2c;
+}
+
+.tigao-organizer__warning {
+  background: #fff5dc;
+  color: #795400;
+}
+
+.tigao-organizer__readonly,
+.tigao-organizer__empty {
+  background: var(--organizer-color-subtle);
+  color: var(--organizer-color-muted);
+}
+
+.tigao-organizer__dialog-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.46);
+  padding: 18px;
+}
+
+.tigao-organizer__dialog {
+  width: min(460px, 100%);
+  max-height: min(680px, calc(100vh - 36px));
+  overflow: auto;
+  border-radius: var(--organizer-radius);
+  background: var(--organizer-color-surface);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+  padding: 22px;
+}
+
+.tigao-organizer__dialog h2 {
+  margin-bottom: 16px;
+}
+
+.tigao-organizer__dialog label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.tigao-organizer__dialog input {
+  width: 100%;
+}
+
+.tigao-organizer__dialog-actions {
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.tigao-organizer__dialog-actions .tigao-organizer__danger {
+  border-color: var(--organizer-color-danger);
+  background: var(--organizer-color-danger);
+}
+
+.tigao-organizer__destination-list {
+  display: grid;
+  gap: 7px;
+}
+
+.tigao-organizer__destination-list button {
+  text-align: left;
+}
+
+.tigao-organizer :where(button, input):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--organizer-color-accent) 40%, transparent);
+  outline-offset: 2px;
+}
+
+.tigao-organizer :where(button, input):disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+@media (max-width: 620px) {
+  .tigao-organizer__create-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .tigao-organizer__create-form > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tigao-organizer__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tigao-organizer__open-label {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tigao-organizer__card {
+    transition: none;
+  }
+}

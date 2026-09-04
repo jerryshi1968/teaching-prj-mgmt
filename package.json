@@ -1,0 +1,28 @@
+{
+  "name": "teaching-prj-mgmt",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "check": "node scripts/check-boundaries.mjs && node scripts/check-packages.mjs",
+    "build": "node scripts/build.mjs",
+    "pack:check": "node scripts/pack-check.mjs",
+    "playground": "vite --config examples/playground/vite.config.js"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@vitejs/plugin-react": "^5.0.2",
+    "esbuild": "^0.25.9",
+    "jsdom": "^26.1.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "vite": "^7.1.4",
+    "vitest": "^3.2.4"
+  }
+}
