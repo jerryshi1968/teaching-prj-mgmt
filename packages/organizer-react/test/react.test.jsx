@@ -44,6 +44,22 @@ vi.mock('@dnd-kit/core', async () => {
         }, 'Simulate project drag'),
         ReactModule.createElement('button', {
           type: 'button',
+          'data-testid': 'simulate-project-drag-middle',
+          onClick: () => onDragEnd({
+            active: { data: { current: { type: 'item', kind: 'project', id: 'project-root-a', parentId: null } } },
+            over: { data: { current: { type: 'item', kind: 'project', id: 'project-root-b', parentId: null } } }
+          })
+        }, 'Simulate project drag to middle'),
+        ReactModule.createElement('button', {
+          type: 'button',
+          'data-testid': 'simulate-project-drag-last',
+          onClick: () => onDragEnd({
+            active: { data: { current: { type: 'item', kind: 'project', id: 'project-root-a', parentId: null } } },
+            over: { data: { current: { type: 'item', kind: 'project', id: 'project-root-c', parentId: null } } }
+          })
+        }, 'Simulate project drag to last'),
+        ReactModule.createElement('button', {
+          type: 'button',
           'data-testid': 'simulate-deep-project-drag-start',
           onClick: () => onDragStart({
             active: { id: 'project:project-deep', data: { current: { type: 'item', kind: 'project', id: 'project-deep', parentId: 3 } } }
@@ -230,6 +246,40 @@ describe('ProjectOrganizer', () => {
     expect(reposition).toHaveBeenCalledWith({
       kind: 'project', id: 'project-root-b', parentId: null, beforeId: 'project-root-a'
     });
+  });
+
+  it('maps downward drags to the next sibling or append position', async () => {
+    const seed = {
+      owners: [{ id: 1, username: 'current-user', readOnly: false }],
+      groups: [],
+      projects: [
+        { kind: 'project', id: 'project-root-a', name: 'First Project', parentId: null, sortOrder: 0, updatedAt: null, ownerId: 1 },
+        { kind: 'project', id: 'project-root-b', name: 'Second Project', parentId: null, sortOrder: 1, updatedAt: null, ownerId: 1 },
+        { kind: 'project', id: 'project-root-c', name: 'Third Project', parentId: null, sortOrder: 2, updatedAt: null, ownerId: 1 }
+      ]
+    };
+    const middleHarness = createMemoryOrganizerHarness(seed);
+    const middleReposition = vi.spyOn(middleHarness.adapter, 'repositionItem');
+    render(<ControlledOrganizer adapter={middleHarness.adapter} />);
+    await screen.findByText('Third Project');
+    fireEvent.click(screen.getByTestId('simulate-project-drag-middle'));
+    await waitFor(() => expect(middleReposition).toHaveBeenCalledWith({
+      kind: 'project', id: 'project-root-a', parentId: null, beforeId: 'project-root-c'
+    }));
+    expect(middleHarness.getState().projects.sort((left, right) => left.sortOrder - right.sortOrder).map((project) => project.id))
+      .toEqual(['project-root-b', 'project-root-a', 'project-root-c']);
+
+    cleanup();
+    const lastHarness = createMemoryOrganizerHarness(seed);
+    const lastReposition = vi.spyOn(lastHarness.adapter, 'repositionItem');
+    render(<ControlledOrganizer adapter={lastHarness.adapter} />);
+    await screen.findByText('Third Project');
+    fireEvent.click(screen.getByTestId('simulate-project-drag-last'));
+    await waitFor(() => expect(lastReposition).toHaveBeenCalledWith({
+      kind: 'project', id: 'project-root-a', parentId: null, beforeId: null
+    }));
+    expect(lastHarness.getState().projects.sort((left, right) => left.sortOrder - right.sortOrder).map((project) => project.id))
+      .toEqual(['project-root-b', 'project-root-c', 'project-root-a']);
   });
 
   it('uses rectangular sorting for card grids and prioritizes explicit pointer containers', async () => {

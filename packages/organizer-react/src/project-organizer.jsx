@@ -23,7 +23,8 @@ import {
   calculateDropBeforeId,
   calculateOffsetBeforeId,
   createDragId,
-  parseDragId
+  parseDragId,
+  sortSummaries
 } from '@tigao/organizer-core';
 import { useProjectOrganizer } from './use-project-organizer.js';
 
@@ -458,7 +459,11 @@ export function ProjectOrganizer({
       return;
     }
     if (targetIdentity.kind === item.kind && targetIdentity.id !== item.id) {
-      const beforeId = calculateDropBeforeId(collection, item.id, targetIdentity.id);
+      const ordered = sortSummaries(collection);
+      const activeIndex = ordered.findIndex((candidate) => candidate.id === item.id);
+      const targetIndex = ordered.findIndex((candidate) => candidate.id === targetIdentity.id);
+      const edge = activeIndex < targetIndex ? 'after' : 'before';
+      const beforeId = calculateDropBeforeId(ordered, item.id, targetIdentity.id, edge);
       organizer.repositionItem(item, currentParentId, beforeId);
     } else if (targetIdentity.kind === 'group') {
       organizer.repositionItem(item, targetIdentity.id, null);

@@ -14,8 +14,8 @@ for (const [directory, expected] of Object.entries(expectedDependencies)) {
   if (JSON.stringify(actual) !== JSON.stringify(expected.sort())) {
     throw new Error(`${manifest.name} has an invalid workspace dependency direction.`);
   }
-  if (manifest.version !== '0.1.1' || manifest.private !== true || manifest.type !== 'module') {
-    throw new Error(`${manifest.name} must be private ESM version 0.1.1.`);
+  if (manifest.version !== '0.1.2' || manifest.private !== true || manifest.type !== 'module') {
+    throw new Error(`${manifest.name} must be private ESM version 0.1.2.`);
   }
   await access(new URL(`../packages/${directory}/src/index.js`, import.meta.url));
 }

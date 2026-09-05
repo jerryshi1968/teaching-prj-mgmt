@@ -1,6 +1,6 @@
 {
   "name": "@tigao/organizer-contract-tests",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
@@ -12,7 +12,7 @@
     "dist"
   ],
   "dependencies": {
-    "@tigao/organizer-contracts": "0.1.1",
-    "@tigao/organizer-core": "0.1.1"
+    "@tigao/organizer-contracts": "0.1.2",
+    "@tigao/organizer-core": "0.1.2"
   }
 }
