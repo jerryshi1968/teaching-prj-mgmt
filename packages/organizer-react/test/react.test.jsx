@@ -14,26 +14,63 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+const dndMocks = vi.hoisted(() => ({
+  context: null,
+  closestCenter: vi.fn(() => []),
+  pointerWithin: vi.fn(() => []),
+  rectIntersection: vi.fn(() => [])
+}));
+
+const sortableMocks = vi.hoisted(() => ({
+  rectSortingStrategy: vi.fn()
+}));
+
 vi.mock('@dnd-kit/core', async () => {
   const ReactModule = await import('react');
   return {
-    DndContext: ({ children, onDragEnd }) => ReactModule.createElement(
-      ReactModule.Fragment,
-      null,
-      children,
-      ReactModule.createElement('button', {
-        type: 'button',
-        'data-testid': 'simulate-project-drag',
-        onClick: () => onDragEnd({
-          active: { data: { current: { type: 'item', kind: 'project', id: 'project-root-b', parentId: null } } },
-          over: { data: { current: { type: 'item', kind: 'project', id: 'project-root-a', parentId: null } } }
-        })
-      }, 'Simulate project drag')
-    ),
+    DndContext: ({ children, onDragStart, onDragCancel, onDragEnd, ...context }) => {
+      dndMocks.context = { onDragStart, onDragCancel, onDragEnd, ...context };
+      return ReactModule.createElement(
+        ReactModule.Fragment,
+        null,
+        children,
+        ReactModule.createElement('button', {
+          type: 'button',
+          'data-testid': 'simulate-project-drag',
+          onClick: () => onDragEnd({
+            active: { data: { current: { type: 'item', kind: 'project', id: 'project-root-b', parentId: null } } },
+            over: { data: { current: { type: 'item', kind: 'project', id: 'project-root-a', parentId: null } } }
+          })
+        }, 'Simulate project drag'),
+        ReactModule.createElement('button', {
+          type: 'button',
+          'data-testid': 'simulate-deep-project-drag-start',
+          onClick: () => onDragStart({
+            active: { id: 'project:project-deep', data: { current: { type: 'item', kind: 'project', id: 'project-deep', parentId: 3 } } }
+          })
+        }, 'Simulate deep project drag start'),
+        ReactModule.createElement('button', {
+          type: 'button',
+          'data-testid': 'simulate-deep-project-root-drop',
+          onClick: () => onDragEnd({
+            active: { id: 'project:project-deep', data: { current: { type: 'item', kind: 'project', id: 'project-deep', parentId: 3 } } },
+            over: { id: 'container:root', data: { current: { type: 'container', parentId: null } } }
+          })
+        }, 'Simulate deep project root drop'),
+        ReactModule.createElement('button', {
+          type: 'button',
+          'data-testid': 'simulate-drag-cancel',
+          onClick: onDragCancel
+        }, 'Simulate drag cancel')
+      );
+    },
+    DragOverlay: ({ children }) => ReactModule.createElement(ReactModule.Fragment, null, children),
     KeyboardSensor: function KeyboardSensor() {},
-    PointerSensor: function PointerSensor() {},
+    MouseSensor: function MouseSensor() {},
     TouchSensor: function TouchSensor() {},
-    closestCenter: () => undefined,
+    closestCenter: dndMocks.closestCenter,
+    pointerWithin: dndMocks.pointerWithin,
+    rectIntersection: dndMocks.rectIntersection,
     useDroppable: () => ({ isOver: false, setNodeRef: () => undefined }),
     useSensor: () => ({}),
     useSensors: (...sensors) => sensors
@@ -43,7 +80,12 @@ vi.mock('@dnd-kit/core', async () => {
 vi.mock('@dnd-kit/sortable', async () => {
   const ReactModule = await import('react');
   return {
-    SortableContext: ({ children }) => ReactModule.createElement(ReactModule.Fragment, null, children),
+    SortableContext: ({ children, strategy }) => ReactModule.createElement(
+      'div',
+      { 'data-testid': 'sortable-context', 'data-strategy': strategy === sortableMocks.rectSortingStrategy ? 'rect' : 'other' },
+      children
+    ),
+    rectSortingStrategy: sortableMocks.rectSortingStrategy,
     sortableKeyboardCoordinates: () => undefined,
     useSortable: () => ({
       attributes: {},
@@ -52,8 +94,7 @@ vi.mock('@dnd-kit/sortable', async () => {
       transform: null,
       transition: undefined,
       isDragging: false
-    }),
-    verticalListSortingStrategy: () => undefined
+    })
   };
 });
 
@@ -62,7 +103,13 @@ vi.mock('@dnd-kit/utilities', () => ({ CSS: { Transform: { toString: () => undef
 import { createMemoryOrganizerHarness } from '@tigao/organizer-contract-tests';
 import { ProjectOrganizer, useProjectOrganizer } from '../src/index.js';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  dndMocks.context = null;
+  dndMocks.closestCenter.mockReset().mockReturnValue([]);
+  dndMocks.pointerWithin.mockReset().mockReturnValue([]);
+  dndMocks.rectIntersection.mockReset().mockReturnValue([]);
+});
 
 function ControlledOrganizer({ adapter, initialOwnerId = null, initialParentId = null, onError }) {
   const [ownerId] = React.useState(initialOwnerId);
@@ -183,6 +230,47 @@ describe('ProjectOrganizer', () => {
     expect(reposition).toHaveBeenCalledWith({
       kind: 'project', id: 'project-root-b', parentId: null, beforeId: 'project-root-a'
     });
+  });
+
+  it('uses rectangular sorting for card grids and prioritizes explicit pointer containers', async () => {
+    const { adapter } = createMemoryOrganizerHarness();
+    render(<ControlledOrganizer adapter={adapter} />);
+    await screen.findByText('First Project');
+    expect(screen.getAllByTestId('sortable-context').map((context) => context.dataset.strategy)).toEqual(['rect', 'rect']);
+
+    const sortableCollision = { id: 'project:project-root-a' };
+    const breadcrumbCollision = { id: 'container:breadcrumb:1' };
+    dndMocks.pointerWithin.mockReturnValue([sortableCollision, breadcrumbCollision]);
+    expect(dndMocks.context.collisionDetection({
+      active: { id: 'project:project-root-b' },
+      pointerCoordinates: { x: 12, y: 8 }
+    })).toEqual([breadcrumbCollision]);
+
+    const groupCollision = { id: 'group:1' };
+    dndMocks.closestCenter.mockReturnValue([groupCollision, sortableCollision]);
+    expect(dndMocks.context.collisionDetection({
+      active: { id: 'project:project-root-b' },
+      pointerCoordinates: null
+    })).toEqual([sortableCollision]);
+  });
+
+  it('shows valid breadcrumb targets during a drag and moves an item to the root breadcrumb', async () => {
+    const harness = createMemoryOrganizerHarness();
+    const reposition = vi.spyOn(harness.adapter, 'repositionItem');
+    render(<ControlledOrganizer adapter={harness.adapter} initialParentId={3} />);
+    await screen.findByText('Deep Project');
+
+    fireEvent.click(screen.getByTestId('simulate-deep-project-drag-start'));
+    expect(screen.getByRole('button', { name: 'All projects' })).toHaveClass('tigao-organizer__breadcrumb--drop-enabled');
+    expect(screen.getByRole('button', { name: 'Lessons' })).toHaveClass('tigao-organizer__breadcrumb--drop-enabled');
+    expect(screen.getByRole('button', { name: 'Exercises' })).not.toHaveClass('tigao-organizer__breadcrumb--drop-enabled');
+    expect(document.querySelector('.tigao-organizer__drag-overlay strong')).toHaveTextContent('Deep Project');
+
+    fireEvent.click(screen.getByTestId('simulate-deep-project-root-drop'));
+    await waitFor(() => expect(reposition).toHaveBeenCalledWith({
+      kind: 'project', id: 'project-deep', parentId: null, beforeId: null
+    }));
+    expect(document.querySelector('.tigao-organizer__drag-overlay')).not.toBeInTheDocument();
   });
 });
 

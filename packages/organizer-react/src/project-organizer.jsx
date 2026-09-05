@@ -1,19 +1,22 @@
 import React, { useEffect, useId, useMemo, useState } from 'react';
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   closestCenter,
+  pointerWithin,
+  rectIntersection,
   useDroppable,
   useSensor,
   useSensors
 } from '@dnd-kit/core';
 import {
   SortableContext,
+  rectSortingStrategy,
   sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy
+  useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
@@ -70,6 +73,35 @@ function parseContainerParentId(dropId) {
   return match ? Number(match[1]) : undefined;
 }
 
+function organizerCollisionDetection(args) {
+  if (!args.pointerCoordinates) {
+    const closestCollisions = closestCenter(args);
+    let activeIdentity;
+    try {
+      activeIdentity = parseDragId(String(args.active.id));
+    } catch {
+      return closestCollisions;
+    }
+    const sortableCollision = closestCollisions.find((collision) => {
+      try {
+        return parseDragId(String(collision.id)).kind === activeIdentity.kind;
+      } catch {
+        return false;
+      }
+    });
+    return sortableCollision ? [sortableCollision] : closestCollisions;
+  }
+
+  const pointerCollisions = pointerWithin(args);
+  const containerCollision = pointerCollisions.find((collision) => String(collision.id).startsWith('container:'));
+  if (containerCollision) return [containerCollision];
+  if (pointerCollisions.length > 0) return pointerCollisions;
+
+  const intersectingCollisions = rectIntersection(args);
+  if (intersectingCollisions.length > 0) return intersectingCollisions;
+  return closestCenter(args);
+}
+
 function IconButton({ label, icon, onClick, disabled = false, className = '', ...buttonProps }) {
   return (
     <button
@@ -86,11 +118,13 @@ function IconButton({ label, icon, onClick, disabled = false, className = '', ..
   );
 }
 
-function GroupNestTarget({ group, messages }) {
+function GroupNestTarget({ group, messages, enabled }) {
   const { isOver, setNodeRef } = useDroppable({
     id: `container:group:${group.id}`,
-    data: { type: 'container', parentId: group.id }
+    data: { type: 'container', parentId: group.id },
+    disabled: !enabled
   });
+  if (!enabled) return null;
   return (
     <div
       ref={setNodeRef}
@@ -114,6 +148,7 @@ function SortableCard({
   onMove,
   onDelete,
   onReposition,
+  activeDrag,
   renderProjectExtraActions
 }) {
   const dragId = createDragId(item.kind, item.id);
@@ -146,7 +181,13 @@ function SortableCard({
         </span>
         <span className="tigao-organizer__open-label">{messages.open}</span>
       </button>
-      {item.kind === 'group' && <GroupNestTarget group={item} messages={messages} />}
+      {item.kind === 'group' && (
+        <GroupNestTarget
+          group={item}
+          messages={messages}
+          enabled={Boolean(activeDrag) && !disabled && !(activeDrag.kind === 'group' && activeDrag.id === item.id)}
+        />
+      )}
       {!readOnly && (
         <div className="tigao-organizer__card-actions">
           <IconButton
@@ -194,16 +235,17 @@ function SortableCard({
   );
 }
 
-function BreadcrumbButton({ parentId, children, onNavigate, active = false }) {
+function BreadcrumbButton({ parentId, children, onNavigate, active = false, dropEnabled = false }) {
   const { isOver, setNodeRef } = useDroppable({
     id: parentId === null ? 'container:root' : `container:breadcrumb:${parentId}`,
-    data: { type: 'container', parentId }
+    data: { type: 'container', parentId },
+    disabled: !dropEnabled
   });
   return (
     <button
       ref={setNodeRef}
       type="button"
-      className={`tigao-organizer__breadcrumb${isOver ? ' tigao-organizer__breadcrumb--over' : ''}`}
+      className={`tigao-organizer__breadcrumb${dropEnabled ? ' tigao-organizer__breadcrumb--drop-enabled' : ''}${isOver ? ' tigao-organizer__breadcrumb--over' : ''}`}
       onClick={() => onNavigate(parentId)}
       aria-current={active ? 'page' : undefined}
     >
@@ -353,9 +395,10 @@ export function ProjectOrganizer({
   const messages = useMemo(() => ({ ...defaultMessages, ...messageOverrides }), [messageOverrides]);
   const organizer = useProjectOrganizer({ adapter, ownerId, currentParentId, onCurrentParentIdChange, onError });
   const [modal, setModal] = useState(null);
+  const [activeDrag, setActiveDrag] = useState(null);
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -366,7 +409,24 @@ export function ProjectOrganizer({
     if (item.kind === 'group') organizer.navigate(item.id);
     else organizer.openProject(item.id);
   };
+  const handleDragStart = ({ active }) => {
+    if (!directory || directory.readOnly || organizer.treeBlocked || organizer.saving) return;
+    const itemData = active.data.current;
+    let activeIdentity;
+    try {
+      activeIdentity = itemData?.type === 'item'
+        ? { kind: itemData.kind, id: itemData.id }
+        : parseDragId(String(active.id));
+    } catch {
+      return;
+    }
+    const collection = activeIdentity.kind === 'project' ? directory.projects : directory.groups;
+    const item = collection.find((candidate) => candidate.id === activeIdentity.id);
+    if (item) setActiveDrag({ kind: item.kind, id: item.id, name: item.name });
+  };
+  const handleDragCancel = () => setActiveDrag(null);
   const handleDragEnd = ({ active, over }) => {
+    setActiveDrag(null);
     if (!over || !directory || directory.readOnly || organizer.treeBlocked) return;
     const itemData = active.data.current;
     const targetData = over.data.current;
@@ -385,6 +445,7 @@ export function ProjectOrganizer({
       ? targetData.parentId
       : parseContainerParentId(String(over.id));
     if (containerParentId !== undefined) {
+      if (containerParentId === item.parentId) return;
       organizer.repositionItem(item, containerParentId, null);
       return;
     }
@@ -431,11 +492,18 @@ export function ProjectOrganizer({
         <DndContext
           key={`${ownerId ?? 'current'}:${currentParentId ?? 'root'}`}
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={organizerCollisionDetection}
+          onDragStart={handleDragStart}
+          onDragCancel={handleDragCancel}
           onDragEnd={handleDragEnd}
         >
           <nav className="tigao-organizer__breadcrumbs" aria-label={messages.root}>
-            <BreadcrumbButton parentId={null} onNavigate={organizer.navigate} active={currentParentId === null}>
+            <BreadcrumbButton
+              parentId={null}
+              onNavigate={organizer.navigate}
+              active={currentParentId === null}
+              dropEnabled={Boolean(activeDrag) && currentParentId !== null && !organizer.saving}
+            >
               {messages.root}
             </BreadcrumbButton>
             {directory.breadcrumbs.map((group, index) => (
@@ -445,6 +513,7 @@ export function ProjectOrganizer({
                   parentId={group.id}
                   onNavigate={organizer.navigate}
                   active={index === directory.breadcrumbs.length - 1}
+                  dropEnabled={Boolean(activeDrag) && group.id !== currentParentId && !organizer.saving}
                 >
                   {group.name}
                 </BreadcrumbButton>
@@ -468,7 +537,7 @@ export function ProjectOrganizer({
               {directory.groups.length > 0 && (
                 <section className="tigao-organizer__section" aria-labelledby="tigao-organizer-groups-title">
                   <h2 id="tigao-organizer-groups-title">{messages.groups}</h2>
-                  <SortableContext items={directory.groups.map((group) => createDragId('group', group.id))} strategy={verticalListSortingStrategy}>
+                  <SortableContext items={directory.groups.map((group) => createDragId('group', group.id))} strategy={rectSortingStrategy}>
                     <div className="tigao-organizer__grid">
                       {directory.groups.map((group, index) => (
                         <SortableCard
@@ -485,6 +554,7 @@ export function ProjectOrganizer({
                           onMove={(item) => setModal({ type: 'move', item })}
                           onDelete={(item) => setModal({ type: 'delete', item })}
                           onReposition={organizer.repositionItem}
+                          activeDrag={activeDrag}
                         />
                       ))}
                     </div>
@@ -494,7 +564,7 @@ export function ProjectOrganizer({
               {directory.projects.length > 0 && (
                 <section className="tigao-organizer__section" aria-labelledby="tigao-organizer-projects-title">
                   <h2 id="tigao-organizer-projects-title">{messages.projects}</h2>
-                  <SortableContext items={directory.projects.map((project) => createDragId('project', project.id))} strategy={verticalListSortingStrategy}>
+                  <SortableContext items={directory.projects.map((project) => createDragId('project', project.id))} strategy={rectSortingStrategy}>
                     <div className="tigao-organizer__grid">
                       {directory.projects.map((project, index) => (
                         <SortableCard
@@ -511,6 +581,7 @@ export function ProjectOrganizer({
                           onMove={(item) => setModal({ type: 'move', item })}
                           onDelete={(item) => setModal({ type: 'delete', item })}
                           onReposition={organizer.repositionItem}
+                          activeDrag={activeDrag}
                           renderProjectExtraActions={renderProjectExtraActions}
                         />
                       ))}
@@ -520,6 +591,14 @@ export function ProjectOrganizer({
               )}
             </div>
           )}
+          <DragOverlay>
+            {activeDrag && (
+              <div className="tigao-organizer__drag-overlay">
+                <span aria-hidden="true">{activeDrag.kind === 'group' ? '▰' : '◇'}</span>
+                <strong>{activeDrag.name}</strong>
+              </div>
+            )}
+          </DragOverlay>
         </DndContext>
       )}
 
