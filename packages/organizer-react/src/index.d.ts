@@ -11,10 +11,11 @@ export interface ProjectOrganizerProps {
   icons?: Record<string, ReactNode | ((props: { 'aria-hidden': true }) => ReactNode)>;
   onError?: (error: unknown) => void;
   renderProjectExtraActions?: (project: ProjectSummary) => ReactNode;
+  renderProjectHostActions?: (project: ProjectSummary, context: { readOnly: boolean }) => ReactNode;
 }
 
 export declare function ProjectOrganizer(props: ProjectOrganizerProps): ReactNode;
-export declare function useProjectOrganizer(props: Omit<ProjectOrganizerProps, 'messages' | 'icons' | 'renderProjectExtraActions'>): {
+export declare function useProjectOrganizer(props: Omit<ProjectOrganizerProps, 'messages' | 'icons' | 'renderProjectExtraActions' | 'renderProjectHostActions'>): {
   directory: DirectoryResult | null;
   loading: boolean;
   error: OrganizerErrorDetails | null;

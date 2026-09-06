@@ -2,7 +2,7 @@
 
 `teaching-prj-mgmt` 是独立、可版本化的通用作品管理前端组件与领域规则仓库。它不提供教学网站、鉴权、后端或跨平台共享作品组；宿主负责登录态、数据访问、编辑器路由和当前目录状态的保存。
 
-当前四个私有包的版本均为 `0.1.2`，不会发布到公共 npm 注册表。
+当前四个私有包的版本均为 `0.1.3`，不会发布到公共 npm 注册表。
 
 ## 工作区与依赖方向
 
@@ -64,6 +64,11 @@ export function ProjectsPage({ adapter, ownerId }) {
           Details
         </button>
       )}
+      renderProjectHostActions={(project, { readOnly }) => (
+        <button type="button" onClick={() => copyProject(project.id)}>
+          {readOnly ? 'Copy to my projects' : 'Copy'}
+        </button>
+      )}
     />
   );
 }
@@ -71,7 +76,7 @@ export function ProjectsPage({ adapter, ownerId }) {
 
 示例中的 `adapter` 是 URL 无关的宿主对象。组件不会读取 Cookie、localStorage 或其他登录状态，也不会直接发出网络请求。受控的 `parentId` 可由宿主同步到路由、页面状态或宿主选定的持久化位置。
 
-`messages` 可覆盖所有用户可见术语，`icons` 可按 `project`、`group`、`drag`、`up`、`down`、`rename`、`move`、`delete` 提供 React 节点或渲染函数。`renderProjectExtraActions(project)` 可在项目卡片上增加宿主操作。
+`messages` 可覆盖所有用户可见术语，`icons` 可按 `project`、`group`、`drag`、`up`、`down`、`rename`、`move`、`delete` 提供 React 节点或渲染函数。`renderProjectExtraActions(project)` 可在可编辑项目卡片上增加宿主操作；`renderProjectHostActions(project, { readOnly })` 在可编辑和只读项目卡片上都会渲染，适合复制只读作品等不修改源项目的宿主操作。只读状态仍隐藏组件内置的重命名、删除、移动、排序和拖放操作。
 
 ## 核心 API 与规则
 

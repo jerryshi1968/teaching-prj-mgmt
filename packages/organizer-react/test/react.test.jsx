@@ -127,7 +127,7 @@ afterEach(() => {
   dndMocks.rectIntersection.mockReset().mockReturnValue([]);
 });
 
-function ControlledOrganizer({ adapter, initialOwnerId = null, initialParentId = null, onError }) {
+function ControlledOrganizer({ adapter, initialOwnerId = null, initialParentId = null, onError, renderProjectHostActions }) {
   const [ownerId] = React.useState(initialOwnerId);
   const [parentId, setParentId] = React.useState(initialParentId);
   return (
@@ -138,6 +138,7 @@ function ControlledOrganizer({ adapter, initialOwnerId = null, initialParentId =
       onCurrentParentIdChange={setParentId}
       onError={onError}
       renderProjectExtraActions={(project) => <button type="button">Extra {project.name}</button>}
+      renderProjectHostActions={renderProjectHostActions}
     />
   );
 }
@@ -210,6 +211,51 @@ describe('ProjectOrganizer', () => {
     render(<ControlledOrganizer adapter={createMemoryOrganizerHarness().adapter} initialOwnerId={2} initialParentId={20} />);
     expect(await screen.findByText('This collection is read-only.')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Create project' })).not.toBeInTheDocument();
+  });
+
+  it('renders host project actions in read-only collections without exposing write actions', async () => {
+    const harness = createMemoryOrganizerHarness();
+    const copyProject = vi.fn();
+    const renderProjectHostActions = vi.fn((project, { readOnly }) => (
+      <button type="button" onClick={() => copyProject(project.id)}>Copy {project.name} {String(readOnly)}</button>
+    ));
+    render(
+      <ControlledOrganizer
+        adapter={harness.adapter}
+        initialOwnerId={2}
+        initialParentId={20}
+        renderProjectHostActions={renderProjectHostActions}
+      />
+    );
+    const user = userEvent.setup();
+    const copyButton = await screen.findByRole('button', { name: 'Copy Read-only Project true' });
+    expect(copyButton).toBeVisible();
+    await user.click(copyButton);
+    expect(copyProject).toHaveBeenCalledWith('project-read-only');
+    expect(harness.getOpenedProjects()).toEqual([]);
+    expect(renderProjectHostActions).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'project', id: 'project-read-only' }),
+      { readOnly: true }
+    );
+    expect(screen.queryByRole('button', { name: 'Rename: Read-only Project' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Move: Read-only Project' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete: Read-only Project' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Extra Read-only Project' })).not.toBeInTheDocument();
+  });
+
+  it('renders host project actions alongside writable actions with read-only context', async () => {
+    const renderProjectHostActions = vi.fn((project, { readOnly }) => (
+      <button type="button">Inspect {project.name} {String(readOnly)}</button>
+    ));
+    render(
+      <ControlledOrganizer
+        adapter={createMemoryOrganizerHarness().adapter}
+        renderProjectHostActions={renderProjectHostActions}
+      />
+    );
+    expect(await screen.findByRole('button', { name: 'Inspect First Project false' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Rename: First Project' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Extra First Project' })).toBeVisible();
   });
 
   it('rolls back an optimistic failure and forwards the original error', async () => {

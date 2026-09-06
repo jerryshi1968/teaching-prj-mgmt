@@ -150,7 +150,8 @@ function SortableCard({
   onDelete,
   onReposition,
   activeDrag,
-  renderProjectExtraActions
+  renderProjectExtraActions,
+  renderProjectHostActions
 }) {
   const dragId = createDragId(item.kind, item.id);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -159,6 +160,9 @@ function SortableCard({
     disabled: readOnly || disabled
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
+  const projectHostActions = item.kind === 'project'
+    ? renderProjectHostActions?.(item, { readOnly })
+    : null;
 
   const moveBy = (offset) => {
     const beforeId = calculateOffsetBeforeId(items, item.id, offset);
@@ -230,6 +234,12 @@ function SortableCard({
             onClick={() => onDelete(item)}
           />
           {item.kind === 'project' && renderProjectExtraActions?.(item)}
+          {projectHostActions}
+        </div>
+      )}
+      {readOnly && projectHostActions && (
+        <div className="tigao-organizer__card-actions">
+          {projectHostActions}
         </div>
       )}
     </article>
@@ -391,7 +401,8 @@ export function ProjectOrganizer({
   messages: messageOverrides,
   icons,
   onError,
-  renderProjectExtraActions
+  renderProjectExtraActions,
+  renderProjectHostActions
 }) {
   const messages = useMemo(() => ({ ...defaultMessages, ...messageOverrides }), [messageOverrides]);
   const organizer = useProjectOrganizer({ adapter, ownerId, currentParentId, onCurrentParentIdChange, onError });
@@ -588,6 +599,7 @@ export function ProjectOrganizer({
                           onReposition={organizer.repositionItem}
                           activeDrag={activeDrag}
                           renderProjectExtraActions={renderProjectExtraActions}
+                          renderProjectHostActions={renderProjectHostActions}
                         />
                       ))}
                     </div>
